@@ -12,7 +12,7 @@
 #include <string>
 
 #pragma comment(lib, "Ws2_32.lib")
-#define DEFAULT_PORT "202012"
+#define DEFAULT_PORT "20202"
 #define DEFAULT_BUFLEN 512
 
 struct addrinfo* result = NULL, *ptr = NULL, hints;
@@ -164,7 +164,7 @@ void gameEvents(SOCKET clientSocket) {
 	char recvData[DEFAULT_BUFLEN];
 	int bytesRead = 8, sendBuf;
 	
-	while (send(clientSocket,recvData,DEFAULT_BUFLEN,0)>0) {
+	while (true) {
 
 		memset(recvData, 0, bytesRead);
 		bytesRead = recv(clientSocket, recvData, DEFAULT_BUFLEN, 0);
@@ -173,12 +173,12 @@ void gameEvents(SOCKET clientSocket) {
 
 			// Wysyłamy wiadomość od klienta do drugiego klienta	
 			if (clientSocket == ClientSockets[0]) {
-				sendBuf = send(ClientSockets[1], recvData, bytesRead, 0);
+				send(ClientSockets[1], recvData, bytesRead, 0);
 				printf("P1: %s\n", recvData);
 				memset(recvData, 0, bytesRead);
 			}
 			else {
-				sendBuf = send(ClientSockets[0], recvData, bytesRead, 0);
+				send(ClientSockets[0], recvData, bytesRead, 0);
 				printf("P2: %s\n", recvData);
 				memset(recvData, 0, bytesRead);
 			}
