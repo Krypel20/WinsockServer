@@ -12,7 +12,7 @@
 #include <string>
 
 #pragma comment(lib, "Ws2_32.lib")
-#define DEFAULT_PORT "20202"
+#define DEFAULT_PORT "1202"
 #define DEFAULT_BUFLEN 512
 
 struct addrinfo* result = NULL, *ptr = NULL, hints;
@@ -85,7 +85,7 @@ listen:
 
 	//ClientSocket = INVALID_SOCKET;
 	connectedSockets = 0;
-	int readyPlayers = 2; //0
+	int readyPlayers = 0; //0
 	while (connectedSockets < 2)
 	{
 		printf("Waiting for connection from players...\n");
@@ -115,7 +115,7 @@ listen:
 Rematch:
 	printf("-----------------Game starts!-----------------\n");
 	//pętla gry
-	while (true) {
+	while (connectedSockets>=2) {
 		fd_set readfds;
 		FD_ZERO(&readfds);
 		FD_SET(ClientSockets[0], &readfds);
@@ -141,7 +141,7 @@ Rematch:
 	while (true)
 	{
 		printf("Waiting for players decisions...\n");
-
+		Sleep(5000);
 		if (gameRestart() == true)
 		{
 			printf("zdecydowano ze bedzie rewanz!\n");
@@ -164,12 +164,12 @@ void gameEvents(SOCKET clientSocket) {
 	char recvData[DEFAULT_BUFLEN];
 	int bytesRead = 8, sendBuf;
 	
-	while (true) {
+	while (connectedSockets >= 2) {
 
 		memset(recvData, 0, bytesRead);
 		bytesRead = recv(clientSocket, recvData, DEFAULT_BUFLEN, 0);
 
-		if (bytesRead > 0 && recvData!="gameover") {
+		if (bytesRead > 0 && recvData != "gameover") {
 
 			// Wysyłamy wiadomość od klienta do drugiego klienta	
 			if (clientSocket == ClientSockets[0]) {
@@ -204,9 +204,10 @@ void gameEvents(SOCKET clientSocket) {
 		else {
 			printf("Client disconnected: %d\n", WSAGetLastError());
 			connectedSockets--;
-			break;
 		}
 	}
+	printf("-------------Game ended--------------\n");
+	return;
 }
 
 bool gameRestart()
