@@ -11,21 +11,21 @@
 #include <string>
 
 #pragma comment(lib, "Ws2_32.lib")
-#define DEFAULT_PORT "1202"
+#define DEFAULT_PORT "202012"
 #define DEFAULT_BUFLEN 512
 
-struct addrinfo* result = NULL, *ptr = NULL, hints;
+struct addrinfo* result = NULL, * ptr = NULL, hints;
 char recvbuf[DEFAULT_BUFLEN];
 int iResult, iSendResult;
 int recvbuflen = DEFAULT_BUFLEN;
-int connectedSockets;
+bool gameRunning = false;
 
-SOCKET ClientSockets[2] = { INVALID_SOCKET,INVALID_SOCKET }; // tablica dwóch socketów dla P1 i P2
+SOCKET ClientSockets[2] = { INVALID_SOCKET,INVALID_SOCKET };
 void gameEvents(SOCKET clientSocket);
-bool gameRestart();
+void gameEnd(SOCKET clientSocket);
 
 int main() {
-
+	
 	WSADATA wsaData;
 	int iResult;
 
@@ -51,8 +51,8 @@ Start:
 		return 1;
 	}
 
-listen:
-	SOCKET ListenSocket = INVALID_SOCKET; //SOCKET nasluchujacy polaczen klientow
+Listen:
+	SOCKET ListenSocket = INVALID_SOCKET; //SOCKET o nazwie ListenSocket, aby serwer nas�uchiwa� po��cze� klient�w.
 	ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
 	if (ListenSocket == INVALID_SOCKET) {
 		printf("Error at socket(): %ld\n", WSAGetLastError());
@@ -83,11 +83,10 @@ listen:
 	}
 
 	//ClientSocket = INVALID_SOCKET;
-	connectedSockets = 0;
-	int readyPlayers = 2; //0
+	int connectedSockets = 0;
 	while (connectedSockets < 2)
 	{
-		printf("Waiting for connection from players...\n");
+		printf("Waiting for connection...\n");
 		// Get client's IP address and port number
 		sockaddr_in clientAddr;
 		int addrLen = sizeof(clientAddr);
@@ -103,29 +102,28 @@ listen:
 			return 1;
 		}
 		ClientSockets[connectedSockets] = ClientSocket;
-		connectedSockets++; 
+		connectedSockets++;
 		printf("Player %d connected", connectedSockets);
 		printf(" Client address: %s\n", clientIP);
 		printf("Players connected: %d/2\n", connectedSockets);
 	}
-	printf("Both players joined the server!\n");
-	//funkcja sprawdzająca gotowość obu graczy do gry
-
 Rematch:
 	printf("-----------------Game starts!-----------------\n");
-	//pętla gry
-	while (connectedSockets==2) {
+	gameRunning = true;
+
+	while (gameRunning == true) {
 		fd_set readfds;
 		FD_ZERO(&readfds);
 		FD_SET(ClientSockets[0], &readfds);
 		FD_SET(ClientSockets[1], &readfds);
 
-		// Sprawdzanie który socket(gracz) jest gotowy do odczytu
+		// Checking which sockets are ready to read
 		int activity = select(0, &readfds, NULL, NULL, NULL);
-		if (activity == SOCKET_ERROR) {	
+		if (activity == SOCKET_ERROR) {
 			printf("select call failed with error: %d\n", WSAGetLastError());
 			break;
 		}
+
 		// Tworzymy wątki dla każdego klienta
 		if (FD_ISSET(ClientSockets[0], &readfds)) {
 			CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)gameEvents, (LPVOID)ClientSockets[0], 0, NULL);
@@ -136,98 +134,47 @@ Rematch:
 		}
 	}
 
-	//pętla zakonczenia gry lub rewanżu
-	while (true)
+	while (gameRunning==false)
 	{
 		printf("Waiting for players decisions...\n");
-
-		if (gameRestart() == true)
-		{
-			printf("zdecydowano ze bedzie rewanz!\n");
-			Sleep(2000);
-			goto Rematch;
-		}
-		else {Sleep(2000); break;}
+		break;
 	}
-
 	// Zamknij sockety i zwolnij zasoby
-	printf("---------CLOSING CONNECTIONS ON BOTH SOCKETS!-------------\n");
+	printf("---------CLOSING CONNECTIONS ON BOTH SOCKETS!-------------");
 	closesocket(ClientSockets[0]);
 	closesocket(ClientSockets[1]);
 	closesocket(ListenSocket);
 	WSACleanup();
 }
 
-
 void gameEvents(SOCKET clientSocket) {
-	char recvData[DEFAULT_BUFLEN];
-	int bytesRead = 8, sendBuf;
-	
-	while (true) {
+	char recvbuf[DEFAULT_BUFLEN];
+	int iResult, iSendResult;
 
-		memset(recvData, 0, bytesRead);
-		bytesRead = recv(clientSocket, recvData, DEFAULT_BUFLEN, 0);
-
-		if (bytesRead > 0 && recvData!="gameover") {
-
-			// Wysyłamy wiadomość od klienta do drugiego klienta	
+	while (gameRunning == true) {
+		iResult = recv(clientSocket, recvbuf, DEFAULT_BUFLEN, 0);
+		if (iResult > 0) {
+			// Wysyłamy wiadomość od klienta do drugiego klienta
 			if (clientSocket == ClientSockets[0]) {
-				send(ClientSockets[1], recvData, bytesRead, 0);
-				printf("P1: %s\n", recvData);
-				memset(recvData, 0, bytesRead);
+				iSendResult = send(ClientSockets[1], recvbuf, iResult, 0);
 			}
 			else {
-				send(ClientSockets[0], recvData, bytesRead, 0);
-				printf("P2: %s\n", recvData);
-				memset(recvData, 0, bytesRead);
+				iSendResult = send(ClientSockets[0], recvbuf, iResult, 0);
 			}
-			if (sendBuf == SOCKET_ERROR) {
+			if (iSendResult == SOCKET_ERROR) {
 				printf("send failed with error: %d\n", WSAGetLastError());
 				break;
 			}
 		}
-		else if (recvData == "gameover")
-		{
-			printf("Jeden z graczy przegral\n");
-			if (clientSocket == ClientSockets[0]) {
-				sendBuf = send(ClientSockets[1], recvData, bytesRead, 0); //P2 dostaje wiadomosc że P1 przegrał
-				printf("P1: %s\n", recvData);
-				memset(recvData, 0, bytesRead);
-			}
-			else {
-				sendBuf = send(ClientSockets[0], recvData, bytesRead, 0); //P1 dostaje wiadomosc że P2 przegrał
-				printf("P2: %s\n", recvData);
-				memset(recvData, 0, bytesRead);
-			}
-		}
-		else {
-			printf("Client disconnected: %d\n", WSAGetLastError());
-			connectedSockets--;
+		else if (iResult == 0) {
+			printf("Client disconnected\n");
+			gameRunning = false;
 			break;
 		}
-	}
-}
-
-bool gameRestart()
-{
-	char message[27] = "Czy chcesz powtorzyc gre?\n";
-	char P1msg[] = "";
-	char P2msg[] = "";
-	send(ClientSockets[0], message, 27, 0);
-	send(ClientSockets[1], message, 27, 0);
-
-	while (true)
-	{
-		if (P1msg == "tak" && P2msg == "tak")
-		{
-			return true;
-		}
 		else {
-			printf("Gracze się nie zgodzili. P1: %s", P1msg); printf(" P2: %s\n", P2msg);
-			char message[50] = "Koniec gry, przeciwnik nie zgodzil sie na rewanz\n";
-			send(ClientSockets[0], message, 50, 0);
-			send(ClientSockets[1], message, 50, 0);
-			return false;
+			printf("Client left: %d\n", WSAGetLastError());
+			gameRunning = false;
+			break;
 		}
 	}
 }
