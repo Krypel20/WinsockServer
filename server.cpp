@@ -109,9 +109,10 @@ listen:
 		printf("Players connected: %d/2\n", connectedSockets);
 	}
 	printf("Both players joined the server!\n");
+Rematch:
+
 	//funkcja sprawdzająca gotowość obu graczy do gry
 
-Rematch:
 	printf("-----------------Game starts!-----------------\n");
 	//pętla gry
 	while (connectedSockets==2) {
@@ -147,9 +148,8 @@ Rematch:
 			Sleep(2000);
 			goto Rematch;
 		}
-		else {Sleep(2000); break;}
+		else { Sleep(2000); break; }
 	}
-
 	// Zamknij sockety i zwolnij zasoby
 	printf("---------CLOSING CONNECTIONS ON BOTH SOCKETS!-------------\n");
 	closesocket(ClientSockets[0]);
@@ -158,10 +158,14 @@ Rematch:
 	WSACleanup();
 }
 
+bool arePlayersReady(SOCKET clientSocket[])
+{
+	return true;
+}
 
 void gameEvents(SOCKET clientSocket) {
 	char recvData[DEFAULT_BUFLEN];
-	int bytesRead = 8, sendBuf;
+	int bytesRead=24, sendBuf;
 	
 	while (true) {
 
@@ -181,8 +185,8 @@ void gameEvents(SOCKET clientSocket) {
 				printf("P2: %s\n", recvData);
 				memset(recvData, 0, bytesRead);
 			}
-			if (sendBuf == SOCKET_ERROR) {
-				printf("send failed with error: %d\n", WSAGetLastError());
+			if (bytesRead == SOCKET_ERROR) {
+				printf("send failed with error:\n");
 				break;
 			}
 		}
@@ -201,8 +205,10 @@ void gameEvents(SOCKET clientSocket) {
 			}
 		}
 		else {
-			printf("Client disconnected: %d\n", WSAGetLastError());
+			printf("Client disconnected\n");
 			connectedSockets--;
+			closesocket(clientSocket);
+			WSACleanup();
 			break;
 		}
 	}
@@ -210,6 +216,7 @@ void gameEvents(SOCKET clientSocket) {
 
 bool gameRestart()
 {
+	return false;
 	char message[27] = "Czy chcesz powtorzyc gre?\n";
 	char P1msg[] = "";
 	char P2msg[] = "";
