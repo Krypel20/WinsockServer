@@ -55,6 +55,7 @@ void startupWinsock()
 
 void startListening()
 {
+	printf("\n----------Server waiting for connections-----------\n");
 	ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
 	if (ListenSocket == INVALID_SOCKET) {
 		printf("Error at socket(): %ld\n", WSAGetLastError());
@@ -148,31 +149,12 @@ void gameEvents(SOCKET clientSocket) {
 	char recvData[DEFAULT_BUFLEN];
 	int iResult, iSendResult;
 
-	while (gameRunning == true) {
+	while (gameRunning == true) 
+	{
+		memset(recvData, 0, DEFAULT_BUFLEN);
+
 		iResult = recv(clientSocket, recvData, DEFAULT_BUFLEN, 0);
-
-		if (iResult > 0 && isdigit(recvData[0]) && recvData!="test!") //wysylanie punktów(int) miedzy P1 i P2
-		{
-			int recvPoints = atoi(recvData);
-
-			// Wysyłamy wiadomość od klienta do drugiego klienta
-			if (clientSocket == ClientSockets[0])
-			{
-				iSendResult = send(ClientSockets[1], recvData, iResult, 0);
-				std::cout << "P1: " << recvData << std::endl;
-			}
-			else if (clientSocket == ClientSockets[1])
-			{
-				iSendResult = send(ClientSockets[0], recvData, iResult, 0);
-				std::cout << "P2: " << recvData<<std::endl;
-			}
-			if (iResult == SOCKET_ERROR) {
-				printf("send failed with error");
-				gameRunning = false;
-				break;
-			}
-		}
-		else if (iResult > 0) //wysylanie wiadomosci miedzy P1 i P2
+		if (iResult > 0) //wysylanie punktów(int) miedzy P1 i P2
 		{
 			// Wysyłamy wiadomość od klienta do drugiego klienta
 			if (clientSocket == ClientSockets[0])
@@ -183,7 +165,7 @@ void gameEvents(SOCKET clientSocket) {
 			else if (clientSocket == ClientSockets[1])
 			{
 				iSendResult = send(ClientSockets[0], recvData, iResult, 0);
-				std::cout << "P2: " << recvData << std::endl;
+				std::cout << "P2: " << recvData <<std::endl;
 			}
 			if (iResult == SOCKET_ERROR) {
 				printf("send failed with error");
@@ -191,37 +173,40 @@ void gameEvents(SOCKET clientSocket) {
 				break;
 			}
 		}
-		else if (iResult == 0) 
+		else if (iResult <= 0) 
 		{
 			gameRunning = false;
 			if (clientSocket == ClientSockets[0])
 			{
 				printf("P1 disconnected\n");
 				closesocket(ClientSockets[0]);
+				break;
 			}
 			if (clientSocket == ClientSockets[1])
 			{
 				printf("P2 disconnected\n");
 				closesocket(ClientSockets[1]);
+				break;
 			}
 		}
 	}
 }
 
 int main() {
-listen:
-	gameRunning = false;
-	startupWinsock();
-	startListening();
+	while (true)
+	{
+		gameRunning = false;
+		startupWinsock();
+		startListening();
 
-	printf("-----------------Game start!-----------------\n");
+		printf("-----------------Game start!-----------------\n");
 
-	gameRunning = true;
-	gameRun();
+		gameRunning = true;
+		gameRun();
 
-	// Zamknij sockety i zwolnij zasoby
-	printf("---------CLOSING CONNECTION ON BOTH SOCKETS!-------------\n");
-	closesocket(ListenSocket);
-	WSACleanup();
-	goto listen;
+		// Zamknij sockety i zwolnij zasoby
+		printf("---------CLOSING CONNECTION ON BOTH SOCKETS!-------------\n");
+		closesocket(ListenSocket);
+		WSACleanup();
+	}
 }
