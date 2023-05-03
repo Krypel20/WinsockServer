@@ -114,12 +114,6 @@ void startListening()
 	printf("Both players joined the server!\n");
 }
 
-
-bool arePlayersReady(SOCKET clientSocket[])
-{
-	return true;
-}
-
 void gameRun()
 {
 	while (connectedSockets == 2) {
@@ -152,7 +146,7 @@ void gameEvents(SOCKET clientSocket) {
 	while (gameRunning == true) 
 	{
 		memset(recvData, 0, DEFAULT_BUFLEN);
-
+		
 		iResult = recv(clientSocket, recvData, DEFAULT_BUFLEN, 0);
 		if (iResult > 0) //wysylanie punktów(int) miedzy P1 i P2
 		{
