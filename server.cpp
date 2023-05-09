@@ -63,7 +63,7 @@ void startListening()
 		WSACleanup();
 		return;
 	}
-	else { printf("Socket valid!\n"); }
+	else { printf("Socket valid!\n");}
 
 
 	// Setup the TCP listening socket
