@@ -1,6 +1,5 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #endif
 
 #include <iostream>
@@ -8,9 +7,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
-#include <stdio.h>
 #include <string>
-#include <locale>
 
 #pragma comment(lib, "Ws2_32.lib")
 #define DEFAULT_PORT "20202"
@@ -51,11 +48,29 @@ void startupWinsock()
 		WSACleanup();
 		return;
 	}
+
+	// Pobieranie adresu ip serwera aby wyswietlić go w konsoli
+	char hostName[NI_MAXHOST];
+	if (gethostname(hostName, NI_MAXHOST) == 0)
+	{
+		addrinfo* result = nullptr;
+		addrinfo hints{};
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_protocol = IPPROTO_TCP;
+
+		if (getaddrinfo(hostName, nullptr, &hints, &result) == 0) {
+			sockaddr_in* addr = reinterpret_cast<sockaddr_in*>(result->ai_addr);
+			char ipAddress[INET_ADDRSTRLEN];
+			inet_ntop(AF_INET, &(addr->sin_addr), ipAddress, INET_ADDRSTRLEN);
+			std::cout << "Server enabled on IP:" << ipAddress << ", Port:" << DEFAULT_PORT << std::endl;
+			freeaddrinfo(result);
+		}
+	}
 }
 
 void startListening()
 {
-	printf("\n----------Server waiting for connections-----------\n");
 	ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
 	if (ListenSocket == INVALID_SOCKET) {
 		printf("Error at socket(): %ld\n", WSAGetLastError());
@@ -65,8 +80,7 @@ void startListening()
 	}
 	else { printf("Socket valid!\n");}
 
-
-	// Setup the TCP listening socket
+	//Powiązanie gniazda z IP i portem
 	iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
 	if (iResult == SOCKET_ERROR) {
 		printf("bind failed with error: %d\n", WSAGetLastError());
@@ -91,7 +105,7 @@ void startListening()
 	while (connectedSockets < 2)
 	{
 		printf("Waiting for connection from players...\n");
-		// Get client's IP address and port number
+		// Pobranie IP klienta
 		sockaddr_in clientAddr;
 		int addrLen = sizeof(clientAddr);
 		getpeername(ClientSockets[connectedSockets], (sockaddr*)&clientAddr, &addrLen);
